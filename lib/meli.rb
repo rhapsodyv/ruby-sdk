@@ -9,7 +9,7 @@ require 'yaml'
 
 class Meli
     attr_accessor :access_token, :refresh_token
-    attr_reader :secret, :app_id, :https
+    attr_reader :secret, :app_id, :https, :stats
 
     config = YAML.load_file(File.expand_path(File.dirname(__FILE__) + "/config.yml"))
     SDK_VERSION = config["config"]["sdk_version"]
@@ -28,6 +28,11 @@ class Meli
         @https.use_ssl = true
         @https.verify_mode = OpenSSL::SSL::VERIFY_PEER
         @https.ssl_version = :TLSv1
+        @stats = {
+            total: 0,
+            successes: 0,
+            failures: 0,
+        }
     end
 
     #AUTH METHODS
@@ -102,10 +107,18 @@ class Meli
 
     #REQUEST METHODS
     def execute(req)
+        @stats[:total] += 1
         req['Accept'] = 'application/json'
         req['User-Agent'] = SDK_VERSION
         req['Content-Type'] = 'application/json'
         response = @https.request(req)
+        case response
+            when Net::HTTPSuccess
+                @stats[:successes] += 1
+            else
+                @stats[:failures] += 1
+        end
+        response
     end
 
     def get(path, params = {})
